@@ -126,7 +126,9 @@ Read the error codes and apply this priority order:
   Priority: [ME] > [A3] > [D7] > [CJ]/[C3] > OTHER
 
 Reply with ONLY the single token — nothing else, no punctuation, no explanation.
-Example valid responses: ODB:ACCEPTED  BC:COST_DIFF  GS:REJECTED_DRUG_INTERACTION
+The token MUST use colons as separators, never spaces.
+Correct:   ODB:ACCEPTED   BC:COST_DIFF   GS:REJECTED_DRUG_INTERACTION   ODB:MARKUP_DIFF
+Incorrect: ODB ACCEPTED   BC COST_DIFF   ODB MARKUP_DIFF
 """
 
 BC_INTERVENTION_PROMPT = """\
