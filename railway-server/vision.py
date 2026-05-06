@@ -1,7 +1,7 @@
 import os
 import anthropic
 
-MAIN_PROMPT = """\
+MAIN_PROMPT_TEMPLATE = """\
 You are reading a screenshot of a Kroll pharmacy software adjudication window.
 These windows have a consistent layout: a green leaf icon and title bar at the top,
 a bold centred header stating the claim result, an errors/warnings section below that,
@@ -10,13 +10,15 @@ Cost, Markup, Fee, Mix Fee, SSC Fee, and Total columns. On the right side are
 Total, Prev Paid, Plan Pays, Discount, and Pat Pays fields.
 
 STEP 1 — IDENTIFY THE PLAN
-Look at the window title bar (top of window) which reads:
-  "Adjudication Response for ODB"
-  "Adjudication Response for BC"
-  "Adjudication Response for CS"
-  "Adjudication Response for GS"
-  "Adjudication Response for AHE"
-Also confirmed by the line "Errors, Warnings and Messages for ODB/BC/CS/GS/AHE"
+The dashboard has selected plan: {plan}
+
+To confirm the exact plan for THIS window, look at these two spots IN THE BODY OF THE WINDOW:
+  1. PRIMARY: The line "Errors, Warnings and Messages for [PLAN]" — this always shows the plan.
+  2. SECONDARY: The bold centred header "The [PLAN] claim was accepted/rejected..." — also shows the plan.
+
+Use the plan name you read from the image. These two spots are the most reliable.
+The window title bar is unreliable — do not use it to determine the plan.
+If you cannot read the plan from the image at all, use {plan} as a fallback.
 The plan name (ODB/BC/CS/GS/AHE) will be used as the prefix in your token.
 
 STEP 2 — READ THE BOLD CENTRED HEADER
@@ -141,7 +143,10 @@ def _get_client() -> anthropic.Anthropic:
 
 
 def analyse(image_b64: str, plan: str, context: str) -> str:
-    prompt = BC_INTERVENTION_PROMPT if context == "bc_intervention" else MAIN_PROMPT
+    if context == "bc_intervention":
+        prompt = BC_INTERVENTION_PROMPT
+    else:
+        prompt = MAIN_PROMPT_TEMPLATE.format(plan=plan)
 
     message = _get_client().messages.create(
         model="claude-haiku-4-5",
