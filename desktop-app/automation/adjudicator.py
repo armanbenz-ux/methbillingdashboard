@@ -111,7 +111,11 @@ def _poll_for_window(timeout: float, status_cb, stop_flag):
     deadline = time.time() + timeout
     checks = 0
     while time.time() < deadline and not stop_flag.is_set():
-        win, kind = window_utils.find_adjudication_or_onnms()
+        try:
+            win, kind = window_utils.find_adjudication_or_onnms()
+        except Exception:
+            time.sleep(_POLL_INTERVAL)
+            continue
         if win is not None:
             return win, kind
         checks += 1
