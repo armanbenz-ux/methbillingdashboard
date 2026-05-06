@@ -10,13 +10,13 @@ def handle(win, token: str, plan: str, status_cb) -> str:
     status = parts[1] if len(parts) > 1 else ""
 
     if status in ("ACCEPTED", "COPAY_AUTO_WAIVED"):
-        win.send_keystrokes("{ENTER}")
+        kb.send_keys("{ENTER}")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         return "continue"
 
     if status in ("COST_DIFF", "FEE_DIFF"):
-        win.send_keystrokes("n")
+        kb.send_keys("n")
         time.sleep(1)
         img = window_utils.screenshot_screen()
         next_token = vision_client.analyse(img, plan, "main")
@@ -24,13 +24,13 @@ def handle(win, token: str, plan: str, status_cb) -> str:
         return _handle_post_n(next_token)
 
     if status == "COPAY":
-        win.send_keystrokes("0{ENTER}")
+        kb.send_keys("0{ENTER}")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         return "continue"
 
     if status == "REJECTED_DRUG_INTERACTION":
-        win.send_keystrokes("i")
+        kb.send_keys("i")
         time.sleep(0.4)
         kb.send_keys("UA{ENTER}")
         time.sleep(0.3)
@@ -41,13 +41,13 @@ def handle(win, token: str, plan: str, status_cb) -> str:
         "REJECTED_COVERAGE_ERROR",
         "REJECTED_OTHER",
     ):
-        win.send_keystrokes("s")
+        kb.send_keys("s")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         logger.log_skip(plan, token)
         return "flush"
 
-    win.send_keystrokes("s")
+    kb.send_keys("s")
     window_utils.wait_for_window_close(win)
     time.sleep(0.3)
     logger.log_skip(plan, token)
