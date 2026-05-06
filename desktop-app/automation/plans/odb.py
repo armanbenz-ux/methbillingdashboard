@@ -23,7 +23,7 @@ def handle(win, token: str, plan: str, status_cb) -> str:
     if status in ("COST_DIFF", "MARKUP_DIFF"):
         kb.send_keys("n")
         time.sleep(1)
-        img = window_utils.screenshot_screen()
+        img = window_utils.screenshot_window(win)
         next_token = vision_client.analyse(img, plan, "main")
         status_cb(f"After N: {next_token}")
         return handle_post_n(win, next_token, plan, status_cb)
@@ -73,6 +73,7 @@ def handle_post_n(win, token: str, plan: str, status_cb) -> str:
 
     if status in ("ACCEPTED", "COPAY_AUTO_WAIVED"):
         kb.send_keys("{ENTER}")
+        window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         return "continue"
 
@@ -82,7 +83,10 @@ def handle_post_n(win, token: str, plan: str, status_cb) -> str:
             kb.send_keys("0{ENTER}")
         else:
             kb.send_keys("{ENTER}")
+        window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         return "continue"
 
+    window_utils.wait_for_window_close(win)
+    time.sleep(0.3)
     return "continue"
