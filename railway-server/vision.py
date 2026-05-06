@@ -37,12 +37,18 @@ Ignore them completely — they do not affect your token.
 
 Look for these visual cues in order from top to bottom of the window:
 
-  A) COST DIFFERENCE
-     Visual: The pricing table shows the Submitted Cost row and Accepted Cost row
-     with DIFFERENT values. The Difference row has a non-zero value highlighted
-     in YELLOW. Below the pricing table is the question:
-     "Do you want to charge the Cost difference of $X.XX to the patient?"
+  A) MARKUP DIFFERENCE (most common on ODB)
+     Visual: The pricing table Markup column shows different Submitted/Accepted values.
+     The Difference row under the Markup column has a non-zero value highlighted in YELLOW.
+     Below the pricing table is the question:
+     "Do you want to charge the Markup difference of $X.XX to the patient?"
      with a field showing the amount, and Yes / No buttons.
+     Return: <PLAN>:MARKUP_DIFF
+
+  A2) COST DIFFERENCE
+     Visual: Same layout but the Cost column (leftmost in the pricing table) shows
+     different Submitted/Accepted values highlighted in YELLOW. The question reads:
+     "Do you want to charge the Cost difference of $X.XX to the patient?"
      Return: <PLAN>:COST_DIFF
 
   B) FEE DIFFERENCE (never appears on ODB — only BC, CS, GS, AHE)
