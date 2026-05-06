@@ -36,8 +36,8 @@ def run(plan_name: str, status_cb, done_cb, stop_flag) -> None:
     plan_upper = plan_name.upper()
 
     if plan_upper == "CASH":
-        status_cb("Cash — checking for ONNMS window")
-        _handle_cash(status_cb)
+        status_cb("Cash — handling ONNMS windows")
+        _handle_cash(status_cb, stop_flag)
         status_cb("Cash patient done")
         done_cb()
         return
@@ -111,7 +111,11 @@ def _poll_for_window(timeout: float, status_cb, stop_flag):
     deadline = time.time() + timeout
     checks = 0
     while time.time() < deadline and not stop_flag.is_set():
-        win, kind = window_utils.find_adjudication_or_onnms()
+        try:
+            win, kind = window_utils.find_adjudication_or_onnms()
+        except Exception:
+            time.sleep(_POLL_INTERVAL)
+            continue
         if win is not None:
             return win, kind
         checks += 1
@@ -134,19 +138,27 @@ def _flush(stop_flag, status_cb) -> None:
             time.sleep(0.3)
             continue
         status_cb("Flushing adjudication window")
-        win.set_focus()
-        kb.send_keys("s")
+        win.send_keystrokes("s")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
 
 
-def _handle_cash(status_cb) -> None:
-    """After OK on review prompt, handle any ONNMS window then done."""
-    deadline = time.time() + 5
-    while time.time() < deadline:
-        onnms = window_utils.find_onnms_window()
-        if onnms:
-            status_cb("ONNMS window after cash — clicking OK")
-            window_utils.dismiss_onnms(onnms)
+def _handle_cash(status_cb, stop_flag) -> None:
+    """Dismiss ONNMS windows one by one until none appear within timeout."""
+    while not stop_flag.is_set():
+        onnms = None
+        deadline = time.time() + 10
+        while time.time() < deadline and not stop_flag.is_set():
+            try:
+                onnms = window_utils.find_onnms_window()
+            except Exception:
+                pass
+            if onnms:
+                break
+            time.sleep(0.3)
+        if onnms is None:
             return
-        time.sleep(0.2)
+        status_cb("ONNMS window — clicking OK")
+        window_utils.dismiss_onnms(onnms)
+        window_utils.wait_for_window_close(onnms)
+        time.sleep(0.3)

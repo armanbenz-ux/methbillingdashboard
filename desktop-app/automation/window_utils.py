@@ -4,7 +4,12 @@ from pywinauto import Desktop
 
 
 def all_windows():
-    return Desktop(backend="win32").windows()
+    for _ in range(3):
+        try:
+            return Desktop(backend="win32").windows()
+        except Exception:
+            time.sleep(0.1)
+    return []
 
 
 def find_information_message():
