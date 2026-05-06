@@ -89,7 +89,11 @@ def run(plan_name: str, status_cb, done_cb, stop_flag) -> None:
             status_cb(f"Unknown plan in token: {token}")
             continue
 
-        result = handler(win, token, token_plan, status_cb)
+        try:
+            result = handler(win, token, token_plan, status_cb)
+        except Exception as e:
+            status_cb(f"Handler error: {e}")
+            continue
 
         if result == "flush":
             _flush(stop_flag, status_cb)
