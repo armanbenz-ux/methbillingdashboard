@@ -60,6 +60,7 @@ def run(plan_name: str, status_cb, done_cb, stop_flag) -> None:
         if kind == "onnms":
             status_cb("ONNMS window — clicking OK")
             window_utils.dismiss_onnms(win)
+            window_utils.wait_for_window_close(win, timeout=6.0)
             time.sleep(0.3)
             continue
 
