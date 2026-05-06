@@ -59,7 +59,10 @@ def run(plan_name: str, status_cb, done_cb, stop_flag) -> None:
 
         if kind == "onnms":
             status_cb("ONNMS window — clicking OK")
-            window_utils.dismiss_onnms(win)
+            clicked = window_utils.dismiss_onnms(win)
+            if not clicked:
+                status_cb("ONNMS dismiss failed — could not find OK button")
+            window_utils.wait_for_window_close(win, timeout=6.0)
             time.sleep(0.3)
             continue
 
@@ -86,7 +89,11 @@ def run(plan_name: str, status_cb, done_cb, stop_flag) -> None:
             status_cb(f"Unknown plan in token: {token}")
             continue
 
-        result = handler(win, token, token_plan, status_cb)
+        try:
+            result = handler(win, token, token_plan, status_cb)
+        except Exception as e:
+            status_cb(f"Handler error: {e}")
+            continue
 
         if result == "flush":
             _flush(stop_flag, status_cb)

@@ -11,7 +11,12 @@ _POLL_INTERVAL = 0.4
 def watch(found_cb, stop_flag, status_cb) -> None:
     checks = 0
     while not stop_flag.is_set():
-        win = window_utils.find_information_message()
+        try:
+            win = window_utils.find_information_message()
+        except Exception as e:
+            status_cb(f"Watcher error: {e}")
+            time.sleep(_POLL_INTERVAL)
+            continue
         if win is not None:
             status_cb("Information Message window found")
             found_cb(win)

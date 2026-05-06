@@ -64,15 +64,23 @@ def screenshot_screen() -> "Image.Image":
     return ImageGrab.grab()
 
 
-def dismiss_onnms(win) -> None:
-    """Click the OK button in an ONNMS window."""
+def dismiss_onnms(win) -> bool:
+    """Click the OK button in an ONNMS window. Returns True if a button was clicked."""
+    import pywinauto.keyboard as kb
+    for title in ("OK", " OK", "Ok"):
+        try:
+            btn = win.child_window(title=title, control_type="Button")
+            btn.click_input()
+            return True
+        except Exception:
+            pass
     try:
-        win.child_window(title="OK", control_type="Button").click_input()
-    except Exception:
-        # Fallback: press Enter
         win.set_focus()
-        import pywinauto.keyboard as kb
         kb.send_keys("{ENTER}")
+        return True
+    except Exception:
+        pass
+    return False
 
 
 def wait_for_window_close(win, timeout: float = 6.0) -> None:

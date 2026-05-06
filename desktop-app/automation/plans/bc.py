@@ -11,15 +11,13 @@ def handle(win, token: str, plan: str, status_cb) -> str:
     status = parts[1] if len(parts) > 1 else ""
 
     if status in ("ACCEPTED", "COPAY_AUTO_WAIVED"):
-        win.set_focus()
-        kb.send_keys("{ENTER}")
+        win.send_keystrokes("{ENTER}")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         return "continue"
 
     if status in ("COST_DIFF", "FEE_DIFF"):
-        win.set_focus()
-        kb.send_keys("n")
+        win.send_keystrokes("n")
         time.sleep(1)
         img = window_utils.screenshot_screen()
         next_token = vision_client.analyse(img, plan, "main")
@@ -27,9 +25,7 @@ def handle(win, token: str, plan: str, status_cb) -> str:
         return _handle_post_n(next_token)
 
     if status == "COPAY":
-        # All BC copays waived
-        win.set_focus()
-        kb.send_keys("0{ENTER}")
+        win.send_keystrokes("0{ENTER}")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         return "continue"
@@ -38,15 +34,13 @@ def handle(win, token: str, plan: str, status_cb) -> str:
         return _bc_intervention(win, plan, status_cb)
 
     if status in ("REJECTED_COVERAGE_ERROR", "REJECTED_OTHER"):
-        win.set_focus()
-        kb.send_keys("s")
+        win.send_keystrokes("s")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         logger.log_skip(plan, token)
         return "flush"
 
-    win.set_focus()
-    kb.send_keys("s")
+    win.send_keystrokes("s")
     window_utils.wait_for_window_close(win)
     time.sleep(0.3)
     logger.log_skip(plan, token)
@@ -69,11 +63,9 @@ def _handle_post_n(token: str) -> str:
 
 def _bc_intervention(win, plan: str, status_cb) -> str:
     """BC identical claim intervention: I → select list → double-click → UN → Enter."""
-    win.set_focus()
-    kb.send_keys("i")
+    win.send_keystrokes("i")
     time.sleep(0.8)
 
-    # Find the intervention list window
     list_win = None
     deadline = time.time() + 6
     while time.time() < deadline:
@@ -103,7 +95,6 @@ def _bc_intervention(win, plan: str, status_cb) -> str:
     try:
         list_win.child_window(title=item_text).double_click_input()
     except Exception:
-        # Fallback: find by partial text
         for ctrl in list_win.descendants():
             try:
                 if item_text in ctrl.window_text():
