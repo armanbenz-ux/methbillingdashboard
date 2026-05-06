@@ -20,7 +20,7 @@ def handle(win, token: str, plan: str, status_cb) -> str:
         time.sleep(0.3)
         return "continue"
 
-    if status == "COST_DIFF":
+    if status in ("COST_DIFF", "MARKUP_DIFF"):
         kb.send_keys("n")
         time.sleep(1)
         img = window_utils.screenshot_screen()
