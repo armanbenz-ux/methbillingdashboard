@@ -4,7 +4,7 @@ import requests
 from PIL import Image
 
 # Updated after Railway deployment
-RAILWAY_URL = "https://your-app.railway.app"
+RAILWAY_URL = "https://methbilling-production.up.railway.app"
 
 _TIMEOUT = 15  # seconds
 
