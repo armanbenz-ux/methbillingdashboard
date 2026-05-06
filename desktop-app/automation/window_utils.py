@@ -1,4 +1,3 @@
-import threading
 import time
 from PIL import ImageGrab
 from pywinauto import Desktop
@@ -63,13 +62,6 @@ def screenshot_window(win) -> "Image.Image":
 
 def screenshot_screen() -> "Image.Image":
     return ImageGrab.grab()
-
-
-def safe_set_focus(win, timeout: float = 1.0) -> None:
-    """Set focus with a timeout so it never hangs the thread."""
-    t = threading.Thread(target=win.set_focus, daemon=True)
-    t.start()
-    t.join(timeout=timeout)
 
 
 def dismiss_onnms(win) -> bool:

@@ -10,15 +10,13 @@ def handle(win, token: str, plan: str, status_cb) -> str:
     status = parts[1] if len(parts) > 1 else ""
 
     if status in ("ACCEPTED", "COPAY_AUTO_WAIVED"):
-        window_utils.safe_set_focus(win)
-        kb.send_keys("{ENTER}")
+        win.send_keystrokes("{ENTER}")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         return "continue"
 
     if status in ("COST_DIFF", "FEE_DIFF"):
-        window_utils.safe_set_focus(win)
-        kb.send_keys("n")
+        win.send_keystrokes("n")
         time.sleep(1)
         img = window_utils.screenshot_screen()
         next_token = vision_client.analyse(img, plan, "main")
@@ -26,36 +24,31 @@ def handle(win, token: str, plan: str, status_cb) -> str:
         return _handle_post_n(next_token)
 
     if status == "COPAY":
-        window_utils.safe_set_focus(win)
-        kb.send_keys("0{ENTER}")
+        win.send_keystrokes("0{ENTER}")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         return "continue"
 
     if status == "REJECTED_DRUG_INTERACTION":
-        window_utils.safe_set_focus(win)
-        kb.send_keys("i")
+        win.send_keystrokes("i")
         time.sleep(0.4)
         kb.send_keys("UA{ENTER}")
         time.sleep(0.3)
         return "continue"
 
     if status in ("REJECTED_IDENTICAL_CLAIM", "REJECTED_REFILL_TOO_SOON"):
-        window_utils.safe_set_focus(win)
-        kb.send_keys("i{ENTER}")
+        win.send_keystrokes("i{ENTER}")
         time.sleep(0.3)
         return "continue"
 
     if status in ("REJECTED_COVERAGE_ERROR", "REJECTED_OTHER"):
-        window_utils.safe_set_focus(win)
-        kb.send_keys("s")
+        win.send_keystrokes("s")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         logger.log_skip(plan, token)
         return "flush"
 
-    window_utils.safe_set_focus(win)
-    kb.send_keys("s")
+    win.send_keystrokes("s")
     window_utils.wait_for_window_close(win)
     time.sleep(0.3)
     logger.log_skip(plan, token)
