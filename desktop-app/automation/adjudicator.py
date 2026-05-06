@@ -67,6 +67,17 @@ def run(plan_name: str, status_cb, done_cb, stop_flag) -> None:
             continue
 
         # kind == 'adjudication'
+        # Detect plan from window title — more reliable than vision
+        window_plan = plan_upper
+        try:
+            title = win.window_text()
+            for p in ("ODB", "BC", "CS", "GS", "AHE"):
+                if f"for {p}" in title:
+                    window_plan = p
+                    break
+        except Exception:
+            pass
+
         status_cb("Adjudication window found — screenshotting")
         try:
             img = window_utils.screenshot_window(win)
@@ -75,15 +86,15 @@ def run(plan_name: str, status_cb, done_cb, stop_flag) -> None:
             continue
 
         try:
-            token = vision_client.analyse(img, plan_upper, "main")
+            token = vision_client.analyse(img, window_plan, "main")
         except Exception as e:
             status_cb(f"Vision error: {e}")
             continue
 
         status_cb(f"Token: {token}")
 
-        token_plan = token.split(":")[0] if ":" in token else plan_upper
-        handler = _PLAN_HANDLERS.get(token_plan, _PLAN_HANDLERS.get(plan_upper))
+        token_plan = token.split(":")[0] if ":" in token else window_plan
+        handler = _PLAN_HANDLERS.get(token_plan, _PLAN_HANDLERS.get(window_plan))
 
         if handler is None:
             status_cb(f"Unknown plan in token: {token}")
