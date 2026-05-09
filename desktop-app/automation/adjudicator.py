@@ -68,6 +68,7 @@ def run(plan_name: str, status_cb, done_cb, stop_flag) -> None:
 
         # kind == 'adjudication'
         status_cb("Adjudication window found — screenshotting")
+        time.sleep(0.8)  # let window finish painting before capture
         try:
             img = window_utils.screenshot_window(win)
         except Exception as e:
