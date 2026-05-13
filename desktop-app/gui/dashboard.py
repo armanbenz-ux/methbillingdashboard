@@ -29,7 +29,7 @@ STATUS_GREEN = "#00e676"
 
 # ── Window geometry ───────────────────────────────────────────────────────────
 WIN_WIDTH = 280
-WIN_HEIGHT = 480
+WIN_HEIGHT = 360
 RIGHT_MARGIN = 8
 
 
@@ -38,7 +38,6 @@ class Dashboard(tk.Tk):
         super().__init__()
 
         self._armed = False
-        self._plan = tk.StringVar(value="odb")
         self._stop_flag = threading.Event()
         self._blink_job = None
         self._blink_state = False
@@ -75,27 +74,6 @@ class Dashboard(tk.Tk):
         self._server_label = tk.Label(self._server_frame, text="Checking server…",
                                       bg=BG, fg=FG, font=normal)
         self._server_label.pack(side="left", padx=(4, 0))
-
-        # Separator
-        tk.Frame(self, bg=ACCENT, height=1).pack(fill="x", padx=12, pady=4)
-
-        # Drug plan radio buttons
-        tk.Label(self, text="Drug Plan", bg=BG, fg=FG, font=bold,
-                 anchor="w").pack(fill="x", padx=14)
-
-        plan_frame = tk.Frame(self, bg=BG)
-        plan_frame.pack(fill="x", padx=14, pady=(2, 8))
-
-        plans = [("ODB", "odb"), ("BC", "bc"), ("CS", "cs"),
-                 ("GS", "gs"), ("Assure", "ahe"), ("Cash", "cash")]
-        for i, (label, value) in enumerate(plans):
-            row, col = divmod(i, 2)
-            rb = tk.Radiobutton(
-                plan_frame, text=label, variable=self._plan, value=value,
-                bg=BG, fg=FG, selectcolor=ACCENT, activebackground=BG,
-                activeforeground=FG, font=normal, anchor="w",
-            )
-            rb.grid(row=row, column=col, sticky="w", padx=(0, 16), pady=1)
 
         # Separator
         tk.Frame(self, bg=ACCENT, height=1).pack(fill="x", padx=12, pady=4)
@@ -197,32 +175,29 @@ class Dashboard(tk.Tk):
         self._disarm_btn.config(state="normal")
         self._set_status("blinking", "Armed — watching for Information Message")
 
-        plan = self._plan.get()
-
-        # Check if Information Message is already open
         win = window_utils.find_information_message()
         if win is not None:
             self._set_status("running", "Information Message already open")
-            self._start_adjudication(win, plan)
+            self._start_adjudication(win)
         else:
             threading.Thread(
-                target=self._watch_thread, args=(plan,), daemon=True
+                target=self._watch_thread, daemon=True
             ).start()
 
-    def _watch_thread(self, plan: str):
+    def _watch_thread(self):
         def found_cb(win):
-            self.after(0, self._on_review_window_found, win, plan)
+            self.after(0, self._on_review_window_found, win)
 
         def status_cb(msg: str):
             self.after(0, self._set_detail, msg)
 
         watcher.watch(found_cb, self._stop_flag, status_cb)
 
-    def _on_review_window_found(self, win, plan: str):
+    def _on_review_window_found(self, win):
         self._set_status("running", "Adjudicating…")
-        self._start_adjudication(win, plan)
+        self._start_adjudication(win)
 
-    def _start_adjudication(self, info_win, plan: str):
+    def _start_adjudication(self, info_win):
         # Click OK on Information Message window
         try:
             info_win.child_window(title=" OK", control_type="Button").click_input()
@@ -242,7 +217,7 @@ class Dashboard(tk.Tk):
 
         threading.Thread(
             target=adjudicator.run,
-            args=(plan, status_cb, done_cb, self._stop_flag),
+            args=(status_cb, done_cb, self._stop_flag),
             daemon=True,
         ).start()
 
@@ -255,15 +230,14 @@ class Dashboard(tk.Tk):
     def _rearm(self):
         if not self._armed:
             return
-        plan = self._plan.get()
         self._set_status("blinking", "Re-armed — watching for Information Message")
         win = window_utils.find_information_message()
         if win is not None:
             self._set_status("running", "Adjudicating…")
-            self._start_adjudication(win, plan)
+            self._start_adjudication(win)
         else:
             threading.Thread(
-                target=self._watch_thread, args=(plan,), daemon=True
+                target=self._watch_thread, daemon=True
             ).start()
 
     def _on_disarm(self):
