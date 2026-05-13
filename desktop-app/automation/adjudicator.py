@@ -2,6 +2,10 @@
 Main adjudication loop.
 Runs in a daemon thread. Communicates status back via status_cb(str).
 Calls done_cb() when all plans for a patient are complete.
+
+Plan is auto-detected from each adjudication window screenshot — no upfront
+selection needed. Cash patients never show an adjudication window, so if only
+ONNMS windows appear the loop times out and declares billing complete.
 """
 import time
 import pywinauto.keyboard as kb
@@ -26,22 +30,12 @@ _PLAN_HANDLERS = {
 }
 
 
-def run(plan_name: str, status_cb, done_cb, stop_flag) -> None:
+def run(status_cb, done_cb, stop_flag) -> None:
     """
-    plan_name: one of 'odb'|'bc'|'cs'|'gs'|'ahe'|'cash'
     status_cb: callable(str) — update GUI status label
     done_cb: callable() — called when patient billing is complete
     stop_flag: threading.Event — set to request abort
     """
-    plan_upper = plan_name.upper()
-
-    if plan_upper == "CASH":
-        status_cb("Cash — handling ONNMS windows")
-        _handle_cash(status_cb, stop_flag)
-        status_cb("Cash patient done")
-        done_cb()
-        return
-
     iterations = 0
     while not stop_flag.is_set() and iterations < _SAFETY_CAP:
         iterations += 1
@@ -52,7 +46,8 @@ def run(plan_name: str, status_cb, done_cb, stop_flag) -> None:
             return
 
         if win is None:
-            # Timeout — billing complete
+            # Timed out with no window — billing complete (covers cash patients
+            # where only ONNMS windows appeared, and normal end-of-billing)
             status_cb("Billing complete")
             done_cb()
             return
@@ -76,18 +71,21 @@ def run(plan_name: str, status_cb, done_cb, stop_flag) -> None:
             continue
 
         try:
-            token = vision_client.analyse(img, plan_upper, "main")
+            token = vision_client.analyse(img, "", "main")
         except Exception as e:
             status_cb(f"Vision error: {e}")
             continue
 
         status_cb(f"Token: {token}")
 
-        token_plan = token.split(":")[0] if ":" in token else plan_upper
-        handler = _PLAN_HANDLERS.get(token_plan, _PLAN_HANDLERS.get(plan_upper))
+        token_plan = token.split(":")[0] if ":" in token else ""
+        handler = _PLAN_HANDLERS.get(token_plan)
 
         if handler is None:
-            status_cb(f"Unknown plan in token: {token}")
+            status_cb(f"Unrecognised plan in token: {token} — skipping")
+            kb.send_keys("s")
+            window_utils.wait_for_window_close(win)
+            time.sleep(0.3)
             continue
 
         try:
@@ -141,25 +139,4 @@ def _flush(stop_flag, status_cb) -> None:
         status_cb("Flushing adjudication window")
         win.send_keystrokes("s")
         window_utils.wait_for_window_close(win)
-        time.sleep(0.3)
-
-
-def _handle_cash(status_cb, stop_flag) -> None:
-    """Dismiss ONNMS windows one by one until none appear within timeout."""
-    while not stop_flag.is_set():
-        onnms = None
-        deadline = time.time() + 10
-        while time.time() < deadline and not stop_flag.is_set():
-            try:
-                onnms = window_utils.find_onnms_window()
-            except Exception:
-                pass
-            if onnms:
-                break
-            time.sleep(0.3)
-        if onnms is None:
-            return
-        status_cb("ONNMS window — clicking OK")
-        window_utils.dismiss_onnms(onnms)
-        window_utils.wait_for_window_close(onnms)
         time.sleep(0.3)
