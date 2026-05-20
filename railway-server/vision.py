@@ -155,7 +155,7 @@ def analyse(image_b64: str, plan: str, context: str) -> str:
     message = _get_client().messages.create(
         model="claude-haiku-4-5",
         max_tokens=64,
-        timeout=15,
+        timeout=30,
         messages=[
             {
                 "role": "user",
