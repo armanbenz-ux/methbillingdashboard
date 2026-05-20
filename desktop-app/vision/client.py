@@ -6,7 +6,7 @@ from PIL import Image
 # Updated after Railway deployment
 RAILWAY_URL = "https://methbillingdashboard-production.up.railway.app"
 
-_TIMEOUT = 15  # seconds
+_TIMEOUT = 45  # seconds — Railway cold-starts can take 20-30s
 
 
 def check_server() -> bool:
