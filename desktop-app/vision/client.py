@@ -11,7 +11,7 @@ _TIMEOUT = 45  # seconds — Railway cold-starts can take 20-30s
 
 def check_server() -> bool:
     try:
-        r = requests.get(f"{RAILWAY_URL}/health", timeout=5)
+        r = requests.get(f"{RAILWAY_URL}/health", timeout=15)
         return r.status_code == 200 and r.json().get("status") == "ok"
     except Exception:
         return False
