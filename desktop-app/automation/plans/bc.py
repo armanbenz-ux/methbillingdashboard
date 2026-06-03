@@ -19,17 +19,10 @@ def handle(win, token: str, plan: str, status_cb) -> str:
     if status in ("COST_DIFF", "FEE_DIFF"):
         kb.send_keys("n")
         time.sleep(1)
-        try:
-            img = window_utils.screenshot_window(win)
-            next_token = vision_client.analyse(img, plan, "main")
-            status_cb(f"After N: {next_token}")
-            return _handle_post_n(win, next_token, status_cb)
-        except Exception:
-            status_cb("After N: vision failed — pressing Enter")
-            kb.send_keys("{ENTER}")
-            window_utils.wait_for_window_close(win)
-            time.sleep(0.3)
-            return "continue"
+        img = window_utils.screenshot_window(win)
+        next_token = vision_client.analyse(img, plan, "main")
+        status_cb(f"After N: {next_token}")
+        return _handle_post_n(win, next_token, status_cb)
 
     if status == "COPAY":
         kb.send_keys("0{ENTER}")
