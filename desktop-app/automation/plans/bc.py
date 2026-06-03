@@ -110,6 +110,8 @@ def _bc_intervention(win, plan: str, status_cb) -> str:
     time.sleep(0.5)  # wait for free form code dialog to open
     kb.send_keys("UN{ENTER}")
     time.sleep(0.5)
+    kb.send_keys("{ENTER}")  # confirm the follow-up prompt
+    time.sleep(0.5)
     # wait for the rejection window to fully close after resubmission
     window_utils.wait_for_window_close(win, timeout=10.0)
     time.sleep(0.3)
