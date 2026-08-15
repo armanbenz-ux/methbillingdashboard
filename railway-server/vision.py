@@ -1,3 +1,4 @@
+import json
 import os
 import anthropic
 
@@ -123,8 +124,23 @@ Read the error codes and apply this priority order:
 
   Priority: [ME] > [A3] > [D7] > [CJ]/[C3] > OTHER
 
-Reply with ONLY the single token — nothing else, no punctuation, no explanation.
-Example valid responses: ODB:ACCEPTED  BC:COST_DIFF  GS:REJECTED_DRUG_INTERACTION
+STEP 5 — PRICING NUMBERS  (only when your token ends in COST_DIFF, MARKUP_DIFF, or FEE_DIFF)
+Read these five numbers directly off the window. Do NOT calculate anything — just read.
+  cost_diff:   Difference row, Cost column     (blank cell = 0.00)
+  markup_diff: Difference row, Markup column   (blank cell = 0.00)
+  fee_diff:    Difference row, Fee column      (blank cell = 0.00)
+  total_diff:  Difference row, Total column
+  pat_pays:    right-hand "Pat Pays" field
+The full Difference row is visible even though the question at the bottom names only one of
+them — read every column, not just the one named in the question.
+
+OUTPUT FORMAT
+Reply with ONLY a JSON object. No markdown, no code fences, no prose. Numbers are JSON floats.
+For COST_DIFF / MARKUP_DIFF / FEE_DIFF tokens, include the pricing object:
+{"token":"AHE:COST_DIFF","pricing":{"cost_diff":0.05,"markup_diff":0.00,"fee_diff":6.99,"total_diff":7.04,"pat_pays":7.10}}
+For every other token (ACCEPTED, COPAY, COPAY_AUTO_WAIVED, all REJECTED_*), pricing is null:
+{"token":"ODB:ACCEPTED","pricing":null}
+{"token":"GS:REJECTED_DRUG_INTERACTION","pricing":null}
 """
 
 BC_INTERVENTION_PROMPT = """\
@@ -146,7 +162,7 @@ def _get_client() -> anthropic.Anthropic:
     return _client
 
 
-def analyse(image_b64: str, plan: str, context: str) -> str:
+def analyse(image_b64: str, plan: str, context: str) -> dict:
     if context == "bc_intervention":
         prompt = BC_INTERVENTION_PROMPT
     else:
@@ -154,7 +170,7 @@ def analyse(image_b64: str, plan: str, context: str) -> str:
 
     message = _get_client().messages.create(
         model="claude-haiku-4-5",
-        max_tokens=64,
+        max_tokens=256,
         timeout=30,
         messages=[
             {
@@ -174,5 +190,19 @@ def analyse(image_b64: str, plan: str, context: str) -> str:
         ],
     )
 
-    token = message.content[0].text.strip()
-    return token
+    raw = message.content[0].text.strip()
+
+    if context == "bc_intervention":
+        return {"token": raw, "pricing": None}
+
+    # main context: expect JSON; be defensive about fences / bare tokens
+    cleaned = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    try:
+        data = json.loads(cleaned)
+        token = str(data.get("token", "")).strip()
+        if not token:
+            raise ValueError("empty token")
+        return {"token": token, "pricing": data.get("pricing")}
+    except Exception:
+        # Model returned a bare token (old behavior) — safe: no pricing => per-key path.
+        return {"token": cleaned, "pricing": None}

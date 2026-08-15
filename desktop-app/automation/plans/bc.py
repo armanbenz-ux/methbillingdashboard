@@ -1,12 +1,13 @@
 import time
 import pywinauto.keyboard as kb
 from pywinauto import Desktop
-from automation import window_utils
+from automation import window_utils, predictor
 from vision import client as vision_client
 from utils import logger
+import config
 
 
-def handle(win, token: str, plan: str, status_cb) -> str:
+def handle(win, token: str, plan: str, status_cb, pricing=None) -> str:
     parts = token.split(":")
     status = parts[1] if len(parts) > 1 else ""
 
@@ -16,7 +17,23 @@ def handle(win, token: str, plan: str, status_cb) -> str:
         time.sleep(0.3)
         return "continue"
 
-    if status in ("COST_DIFF", "FEE_DIFF"):
+    if status in ("COST_DIFF", "FEE_DIFF", "MARKUP_DIFF"):
+        queue, meta, ok = predictor.compute_plan(pricing)
+        if config.PREDICTOR_SHADOW:
+            logger.log_shadow(plan, pricing or {}, queue if ok else [], meta)
+            shown = ",".join(queue) if ok and queue else f"(skip: {meta.get('reason')})"
+            status_cb(f"[SHADOW] {plan} would fire {shown}")
+            # fall through to legacy
+        elif ok and queue and config.PREDICTOR_ENABLED:
+            status_cb(f"Predicted {queue} | {meta}")
+            predictor.fire(win, queue, status_cb)
+            if predictor.verify_closed(win):
+                time.sleep(0.3)
+                return "continue"
+            status_cb("Prediction mismatch — reverting to per-key")
+        elif pricing:
+            status_cb(f"Predictor skipped ({meta.get('reason')}) — per-key")
+        # legacy per-keystroke fallback
         kb.send_keys("n")
         time.sleep(1)
         img = window_utils.screenshot_window(win)
@@ -108,10 +125,10 @@ def _bc_intervention(win, plan: str, status_cb) -> str:
                 pass
 
     time.sleep(0.5)  # wait for free form code dialog to open
-    kb.send_keys("UN{ENTER}")
+    kb.send_keys("UN")
     time.sleep(0.5)
-    kb.send_keys("{ENTER}")  # confirm the follow-up prompt
-    time.sleep(0.5)
+    kb.send_keys("{ENTER}")
+    time.sleep(0.3)
     # wait for the rejection window to fully close after resubmission
     window_utils.wait_for_window_close(win, timeout=10.0)
     time.sleep(0.3)
