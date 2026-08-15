@@ -71,11 +71,13 @@ def run(status_cb, done_cb, stop_flag) -> None:
             continue
 
         try:
-            token = vision_client.analyse(img, "", "main")
+            analysis = vision_client.analyse_full(img, "", "main")
         except Exception as e:
             status_cb(f"Vision error: {e}")
             continue
 
+        token   = analysis["token"]
+        pricing = analysis.get("pricing")
         status_cb(f"Token: {token}")
 
         token_plan = token.split(":")[0] if ":" in token else ""
@@ -89,7 +91,7 @@ def run(status_cb, done_cb, stop_flag) -> None:
             continue
 
         try:
-            result = handler(win, token, token_plan, status_cb)
+            result = handler(win, token, token_plan, status_cb, pricing)
         except Exception as e:
             status_cb(f"Handler error: {e}")
             continue

@@ -3,7 +3,6 @@ import io
 import requests
 from PIL import Image
 
-# Updated after Railway deployment
 RAILWAY_URL = "https://methbillingdashboard-production.up.railway.app"
 
 _TIMEOUT = 45  # seconds — Railway cold-starts can take 20-30s
@@ -11,13 +10,13 @@ _TIMEOUT = 45  # seconds — Railway cold-starts can take 20-30s
 
 def check_server() -> bool:
     try:
-        r = requests.get(f"{RAILWAY_URL}/health", timeout=5)
+        r = requests.get(f"{RAILWAY_URL}/health", timeout=15)
         return r.status_code == 200 and r.json().get("status") == "ok"
     except Exception:
         return False
 
 
-def analyse(image: Image.Image, plan: str, context: str = "main") -> str:
+def analyse_full(image: Image.Image, plan: str, context: str = "main") -> dict:
     buf = io.BytesIO()
     image.save(buf, format="PNG")
     image_b64 = base64.b64encode(buf.getvalue()).decode("ascii")
@@ -25,4 +24,8 @@ def analyse(image: Image.Image, plan: str, context: str = "main") -> str:
     payload = {"image_b64": image_b64, "plan": plan, "context": context}
     r = requests.post(f"{RAILWAY_URL}/analyse", json=payload, timeout=_TIMEOUT)
     r.raise_for_status()
-    return r.json()["token"]
+    return r.json()  # {"token": ..., "pricing": {...} | None}
+
+
+def analyse(image: Image.Image, plan: str, context: str = "main") -> str:
+    return analyse_full(image, plan, context)["token"]

@@ -21,6 +21,23 @@ def log_skip(plan: str, token: str) -> None:
         f.write(line)
 
 
+def log_shadow(plan: str, numbers: dict, predicted: list, meta: dict = None) -> None:
+    desktop = _get_desktop_path()
+    date_str = datetime.date.today().isoformat()
+    log_path = os.path.join(desktop, f"adjudication_shadow_{date_str}.log")
+    time_str = datetime.datetime.now().strftime("%H:%M:%S")
+    fields = ("cost_diff", "markup_diff", "fee_diff", "total_diff", "pat_pays")
+    nums = " ".join(f"{k}={numbers.get(k)}" for k in fields)
+    if predicted:
+        action = "predicted: " + ",".join(predicted)
+    else:
+        reason = (meta or {}).get("reason", "?")
+        action = f"predicted: (skip: {reason})"
+    line = f"{time_str}  {plan} | {nums} | {action}\n"
+    with open(log_path, "a", encoding="utf-8") as f:
+        f.write(line)
+
+
 def get_log_path() -> str:
     desktop = _get_desktop_path()
     date_str = datetime.date.today().isoformat()

@@ -9,7 +9,7 @@ def _waive_copay_amounts() -> set:
     return {"2.00", "6.11"}
 
 
-def handle(win, token: str, plan: str, status_cb) -> str:
+def handle(win, token: str, plan: str, status_cb, pricing=None) -> str:
     parts = token.split(":")
     status = parts[1] if len(parts) > 1 else ""
     extra = parts[2] if len(parts) > 2 else ""

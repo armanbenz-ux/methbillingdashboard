@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import vision
@@ -14,6 +15,7 @@ class AnalyseRequest(BaseModel):
 
 class AnalyseResponse(BaseModel):
     token: str
+    pricing: Optional[dict] = None
 
 
 class HealthResponse(BaseModel):
@@ -28,8 +30,7 @@ def health():
 @app.post("/analyse", response_model=AnalyseResponse)
 def analyse(req: AnalyseRequest):
     try:
-        token = vision.analyse(req.image_b64, req.plan, req.context)
-        return {"token": token}
+        return vision.analyse(req.image_b64, req.plan, req.context)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
