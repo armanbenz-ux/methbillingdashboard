@@ -60,8 +60,18 @@ def find_adjudication_or_onnms():
     return None, None
 
 
+def is_window_open(win) -> bool:
+    """True if the window still exists and is visible; False if it has closed."""
+    try:
+        return bool(win.is_visible())
+    except Exception:
+        return False
+
+
 def screenshot_window(win) -> "Image.Image":
     rect = win.rectangle()
+    if rect.right <= rect.left or rect.bottom <= rect.top:
+        raise ValueError("window rectangle is empty (window closed or minimized)")
     return ImageGrab.grab(bbox=(rect.left, rect.top, rect.right, rect.bottom))
 
 

@@ -35,6 +35,9 @@ def handle(win, token: str, plan: str, status_cb, pricing=None) -> str:
         # legacy per-keystroke fallback
         kb.send_keys("n")
         time.sleep(1)
+        if not window_utils.is_window_open(win):
+            time.sleep(0.3)
+            return "continue"
         img = window_utils.screenshot_window(win)
         next_token = vision_client.analyse(img, plan, "main")
         status_cb(f"After N: {next_token}")
