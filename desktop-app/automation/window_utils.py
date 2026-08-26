@@ -37,7 +37,7 @@ def find_adjudication_window():
 def find_onnms_window():
     for win in all_windows():
         try:
-            if win.window_text() == "Adjudication Response for ONNMS" and win.is_visible():
+            if "ONNMS" in win.window_text() and win.is_visible():
                 return win
         except Exception:
             pass
@@ -51,7 +51,7 @@ def find_adjudication_or_onnms():
             if not win.is_visible():
                 continue
             title = win.window_text()
-            if title == "Adjudication Response for ONNMS":
+            if "ONNMS" in title:
                 return win, "onnms"
             if "Adjudication Response" in title:
                 return win, "adjudication"
