@@ -29,54 +29,45 @@ This is the most important line in the window. It will say one of:
     Go to STEP 4
 
 STEP 3 — ACCEPTED FLOW
-IMPORTANT: When the claim is accepted, ALL error codes shown in the
-"Errors, Warnings and Messages" section ([ME], [CK], [DD], [LG], [DH],
-[DJ], [D7], [KU], [DB] etc.) are purely informational warnings.
-Ignore them completely — they do not affect your token.
+IMPORTANT: When the claim is accepted, ALL error codes ([ME], [CK], [DD], [LG], [DH],
+[DJ], [D7], [KU], [DB] etc.) are purely informational warnings. Ignore them.
 
-Look for these visual cues in order from top to bottom of the window:
+Decide the token from the PROMPT AND BUTTONS BELOW THE PRICING TABLE — NOT from the table
+cells. The pricing table can show non-zero Cost/Markup/Fee differences even on a copay
+window: Kroll sometimes rolls the whole difference into a single copay. Non-zero difference
+cells do NOT by themselves mean a difference token. Read the bottom of the window:
 
-  A) MARKUP DIFFERENCE (most common on ODB)
-     Visual: The pricing table Markup column shows different Submitted/Accepted values.
-     The Difference row under the Markup column has a non-zero value highlighted in YELLOW.
-     Below the pricing table is the question:
-     "Do you want to charge the Markup difference of $X.XX to the patient?"
-     with a field showing the amount, and Yes / No buttons.
-     Return: <PLAN>:MARKUP_DIFF
+  1) COPAY TO WAIVE
+     Bottom text: "There was a copay amount of X.XX" and "Adjust it, if desired, and press
+     Enter.", with an editable field showing the amount and an OK button (NO Yes/No buttons).
+     Return: <PLAN>:COPAY:<amount>
+     Return this WHENEVER this copay prompt is present, EVEN IF the pricing table shows
+     non-zero Cost/Markup/Fee differences. There is no "Do you want to charge" question here.
 
-  A2) COST DIFFERENCE
-     Visual: Same layout but the Cost column (leftmost in the pricing table) shows
-     different Submitted/Accepted values highlighted in YELLOW. The question reads:
-     "Do you want to charge the Cost difference of $X.XX to the patient?"
-     Return: <PLAN>:COST_DIFF
-
-  B) FEE DIFFERENCE (never appears on ODB — only BC, CS, GS, AHE)
-     Visual: Same pricing table layout but the Fee column shows different
-     Submitted/Accepted values highlighted in YELLOW. The question reads:
-     "Do you want to charge the Fee difference of $X.XX to the patient?"
-     with Yes / No buttons.
-     Return: <PLAN>:FEE_DIFF
-
-  C) COPAY TO WAIVE
-     Visual: Below the pricing table, the text reads:
-     "There was a copay amount of X.XX"
-     followed by: "Adjust it, if desired, and press Enter."
-     with an editable blue input field showing the copay amount, and an OK button.
-     The Pat Pays field on the right will show the copay amount.
-     Return: <PLAN>:COPAY:<amount>   e.g. ODB:COPAY:2.00 or BC:COPAY:3.99
-
-  D) COPAY AUTO-WAIVED BY KROLL
-     Visual: Below the pricing table, the text reads:
-     "The patient's copay of X.XX was discounted to 0.00"
-     The Discount field on the right shows the waived amount. Pat Pays shows 0.00.
-     No input field visible. Kroll has already applied the discount.
+  2) COPAY AUTO-WAIVED
+     Bottom text: "The patient's copay of X.XX was discounted to 0.00". Pat Pays shows 0.00,
+     no input field.
      Return: <PLAN>:COPAY_AUTO_WAIVED
 
-  E) CLEAN ACCEPT — none of the above present
-     Visual: Pricing table Submitted and Accepted rows show identical values.
-     Difference row is empty. No question text below the table.
-     No copay text visible anywhere in the window.
+  3) CHARGE-DIFFERENCE QUESTION
+     Bottom shows the question "Do you want to charge the [Cost|Markup|Fee] difference of
+     $X.XX to the patient?" with Yes / No buttons, and the named difference cell highlighted
+     in YELLOW. ONLY in this case return a difference token, named by the question:
+       Cost   -> <PLAN>:COST_DIFF
+       Markup -> <PLAN>:MARKUP_DIFF
+       Fee    -> <PLAN>:FEE_DIFF
+     If several differences exist, the question names one at a time; return the one shown.
+
+  4) CLEAN ACCEPT
+     None of the above prompts present (no copay text, no Yes/No question); Submitted and
+     Accepted rows match, Difference row empty.
      Return: <PLAN>:ACCEPTED
+
+DECISION RULE (do not deviate):
+  OK button + "copay amount" text           => COPAY (case 1)
+  Yes/No buttons + "Do you want to charge"  => difference token (case 3)
+  If you see an OK button and a copay amount, it is NEVER a difference token, no matter
+  what the pricing table shows.
 
 STEP 4 — REJECTED FLOW
 The header says "The [PLAN] claim was rejected because:"
@@ -136,8 +127,11 @@ them — read every column, not just the one named in the question.
 
 OUTPUT FORMAT
 Reply with ONLY a JSON object. No markdown, no code fences, no prose. Numbers are JSON floats.
-For COST_DIFF / MARKUP_DIFF / FEE_DIFF tokens, include the pricing object:
-{"token":"AHE:COST_DIFF","pricing":{"cost_diff":0.05,"markup_diff":0.00,"fee_diff":6.99,"total_diff":7.04,"pat_pays":7.10}}
+For a difference token (COST_DIFF/MARKUP_DIFF/FEE_DIFF), the pricing object MUST include
+"charge_prompt": true, asserting the "Do you want to charge ... difference?" Yes/No question
+is actually visible on screen. If that Yes/No question is NOT visible, do NOT return a
+difference token — it is a COPAY (case 1) or ACCEPTED (case 4) window.
+{"token":"AHE:COST_DIFF","pricing":{"cost_diff":0.05,"markup_diff":0.00,"fee_diff":6.99,"total_diff":7.04,"pat_pays":7.10,"charge_prompt":true}}
 For every other token (ACCEPTED, COPAY, COPAY_AUTO_WAIVED, all REJECTED_*), pricing is null:
 {"token":"ODB:ACCEPTED","pricing":null}
 {"token":"GS:REJECTED_DRUG_INTERACTION","pricing":null}

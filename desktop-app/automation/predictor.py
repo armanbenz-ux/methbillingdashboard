@@ -23,6 +23,9 @@ def compute_plan(pricing: dict):
     if not pricing:
         return [], {"reason": "no pricing"}, False
 
+    if not pricing.get("charge_prompt"):
+        return [], {"reason": "no yes/no charge prompt — not a difference window"}, False
+
     def num(key):
         v = pricing.get(key)
         try:
