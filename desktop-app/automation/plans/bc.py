@@ -116,6 +116,8 @@ def _bc_intervention(win, plan: str, status_cb) -> str:
         status_cb("BC intervention: item not found by vision")
         return "continue"
 
+    list_win.set_focus()
+    time.sleep(0.2)
     try:
         list_win.child_window(title=item_text).double_click_input()
     except Exception:
@@ -127,7 +129,15 @@ def _bc_intervention(win, plan: str, status_cb) -> str:
             except Exception:
                 pass
 
-    time.sleep(1.0)  # wait for free form code dialog to open
+    # Wait for the list window to close before typing — confirms the
+    # double-click was processed (mouse events can queue behind keyboard events).
+    deadline = time.time() + 5.0
+    while time.time() < deadline:
+        if not window_utils.is_window_open(list_win):
+            break
+        time.sleep(0.1)
+    time.sleep(0.5)  # let the free-form dialog fully paint
+
     kb.send_keys("UN")
     time.sleep(0.5)
     kb.send_keys("{ENTER}")
