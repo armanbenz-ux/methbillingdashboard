@@ -133,6 +133,7 @@ is actually visible on screen. If that Yes/No question is NOT visible, do NOT re
 difference token — it is a COPAY (case 1) or ACCEPTED (case 4) window.
 {"token":"AHE:COST_DIFF","pricing":{"cost_diff":0.05,"markup_diff":0.00,"fee_diff":6.99,"total_diff":7.04,"pat_pays":7.10,"charge_prompt":true}}
 For every other token (ACCEPTED, COPAY, COPAY_AUTO_WAIVED, all REJECTED_*), pricing is null:
+{"token":"ODB:COPAY:6.11","pricing":null}
 {"token":"ODB:ACCEPTED","pricing":null}
 {"token":"GS:REJECTED_DRUG_INTERACTION","pricing":null}
 """
