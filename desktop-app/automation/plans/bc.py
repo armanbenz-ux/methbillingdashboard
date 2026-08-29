@@ -127,7 +127,7 @@ def _bc_intervention(win, plan: str, status_cb) -> str:
             except Exception:
                 pass
 
-    time.sleep(0.5)  # wait for free form code dialog to open
+    time.sleep(1.0)  # wait for free form code dialog to open
     kb.send_keys("UN")
     time.sleep(0.5)
     kb.send_keys("{ENTER}")
