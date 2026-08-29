@@ -118,6 +118,15 @@ def _bc_intervention(win, plan: str, status_cb) -> str:
 
     list_win.set_focus()
     time.sleep(0.2)
+
+    # Snapshot existing handles so we can detect the new free-form dialog.
+    before_handles = set()
+    for w in Desktop(backend="win32").windows():
+        try:
+            before_handles.add(w.handle)
+        except Exception:
+            pass
+
     try:
         list_win.child_window(title=item_text).double_click_input()
     except Exception:
@@ -129,14 +138,27 @@ def _bc_intervention(win, plan: str, status_cb) -> str:
             except Exception:
                 pass
 
-    # Wait for the list window to close before typing — confirms the
-    # double-click was processed (mouse events can queue behind keyboard events).
+    # Poll until a new visible window appears (the free-form input dialog).
+    freeform_win = None
     deadline = time.time() + 5.0
     while time.time() < deadline:
-        if not window_utils.is_window_open(list_win):
+        for w in Desktop(backend="win32").windows():
+            try:
+                if w.handle not in before_handles and w.is_visible():
+                    freeform_win = w
+                    break
+            except Exception:
+                pass
+        if freeform_win:
             break
         time.sleep(0.1)
-    time.sleep(0.5)  # let the free-form dialog fully paint
+
+    if freeform_win:
+        try:
+            freeform_win.set_focus()
+        except Exception:
+            pass
+    time.sleep(0.3)  # let the dialog fully paint
 
     kb.send_keys("UN")
     time.sleep(0.5)
