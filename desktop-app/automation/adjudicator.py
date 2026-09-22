@@ -63,7 +63,24 @@ def run(status_cb, done_cb, stop_flag) -> None:
 
         # kind == 'adjudication'
         status_cb("Adjudication window found — screenshotting")
-        time.sleep(0.8)  # let window finish painting before capture
+        time.sleep(0.5)  # let window finish painting before capture
+
+        # Re-verify the window hasn't been replaced by an ONNMS popup during
+        # the paint delay (ONNMS can appear at the same screen coordinates).
+        try:
+            if not window_utils.is_window_open(win):
+                status_cb("Adjudication window closed before screenshot — re-polling")
+                continue
+            _title = win.window_text()
+            if "ONNMS" in _title:
+                status_cb("Window transitioned to ONNMS — clicking OK")
+                window_utils.dismiss_onnms(win)
+                window_utils.wait_for_window_close(win, timeout=6.0)
+                time.sleep(0.3)
+                continue
+        except Exception:
+            continue
+
         try:
             img = window_utils.screenshot_window(win)
         except Exception as e:
