@@ -1,5 +1,4 @@
 import time
-import pywinauto.keyboard as kb
 from automation import window_utils, predictor
 from vision import client as vision_client
 from utils import logger
@@ -11,7 +10,7 @@ def handle(win, token: str, plan: str, status_cb, pricing=None) -> str:
     status = parts[1] if len(parts) > 1 else ""
 
     if status in ("ACCEPTED", "COPAY_AUTO_WAIVED"):
-        kb.send_keys("{ENTER}")
+        window_utils.send_to(win, "{ENTER}")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         return "continue"
@@ -33,7 +32,7 @@ def handle(win, token: str, plan: str, status_cb, pricing=None) -> str:
         elif pricing:
             status_cb(f"Predictor skipped ({meta.get('reason')}) — per-key")
         # legacy per-keystroke fallback
-        kb.send_keys("n")
+        window_utils.send_to(win, "n")
         time.sleep(1)
         if not window_utils.is_window_open(win):
             time.sleep(0.3)
@@ -44,7 +43,7 @@ def handle(win, token: str, plan: str, status_cb, pricing=None) -> str:
         return _handle_post_n(win, next_token)
 
     if status == "COPAY":
-        kb.send_keys("0{ENTER}")
+        window_utils.send_to(win, "0{ENTER}")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         return "continue"
@@ -54,13 +53,13 @@ def handle(win, token: str, plan: str, status_cb, pricing=None) -> str:
         "REJECTED_COVERAGE_ERROR",
         "REJECTED_OTHER",
     ):
-        kb.send_keys("s")
+        window_utils.send_to(win, "s")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         logger.log_skip(plan, token)
         return "flush"
 
-    kb.send_keys("s")
+    window_utils.send_to(win, "s")
     window_utils.wait_for_window_close(win)
     time.sleep(0.3)
     logger.log_skip(plan, token)
@@ -71,12 +70,12 @@ def _handle_post_n(win, token: str) -> str:
     parts = token.split(":")
     status = parts[1] if len(parts) > 1 else ""
     if status in ("ACCEPTED", "COPAY_AUTO_WAIVED"):
-        kb.send_keys("{ENTER}")
+        window_utils.send_to(win, "{ENTER}")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         return "continue"
     if status == "COPAY":
-        kb.send_keys("0{ENTER}")
+        window_utils.send_to(win, "0{ENTER}")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         return "continue"

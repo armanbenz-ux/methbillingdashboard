@@ -8,7 +8,6 @@ selection needed. Cash patients never show an adjudication window, so if only
 ONNMS windows appear the loop times out and declares billing complete.
 """
 import time
-import pywinauto.keyboard as kb
 
 from automation import window_utils
 from automation.plans import odb, bc, cs, gs, assure
@@ -19,6 +18,9 @@ _POLL_INTERVAL = 0.4
 _DONE_TIMEOUT = 15.0
 _FLUSH_TIMEOUT = 15.0
 _SAFETY_CAP = 60
+# How many times the same window may hand back the same token before
+# the loop accepts that its answers are not landing.
+_STUCK_ROUNDS = 2
 
 
 _PLAN_HANDLERS = {
@@ -37,6 +39,14 @@ def run(status_cb, done_cb, stop_flag) -> None:
     stop_flag: threading.Event — set to request abort
     """
     iterations = 0
+    _stuck = False
+    # The same claim coming back means the last answer did not land. Six
+    # identical rounds used to burn to the safety cap and then report
+    # themselves through done_cb exactly like a clean finish, which is how a
+    # 35-claim run stopped on the 30th with nothing saying why (Stropnicki,
+    # live 2026-10-03).
+    last_seen = None
+    repeats = 0
     while not stop_flag.is_set() and iterations < _SAFETY_CAP:
         iterations += 1
 
@@ -97,12 +107,24 @@ def run(status_cb, done_cb, stop_flag) -> None:
         pricing = analysis.get("pricing")
         status_cb(f"Token: {token}")
 
+        try:
+            here = (win.handle, token)
+        except Exception:
+            here = (None, token)
+        repeats = repeats + 1 if here == last_seen else 0
+        last_seen = here
+        if repeats >= _STUCK_ROUNDS:
+            status_cb(f"STUCK: {token} has come back {repeats + 1} times "
+                      "unanswered — stopping rather than carrying on")
+            _stuck = True
+            break
+
         token_plan = token.split(":")[0] if ":" in token else ""
         handler = _PLAN_HANDLERS.get(token_plan)
 
         if handler is None:
             status_cb(f"Unrecognised plan in token: {token} — skipping")
-            kb.send_keys("s")
+            window_utils.send_to(win, "s", status_cb)
             window_utils.wait_for_window_close(win)
             time.sleep(0.3)
             continue
@@ -119,8 +141,14 @@ def run(status_cb, done_cb, stop_flag) -> None:
             done_cb()
             return
 
+    if _stuck:
+        # NOT done_cb(): this patient is not finished, and saying so through
+        # the same callback a clean finish uses is what made the failure look
+        # like success from outside this loop.
+        return
     if iterations >= _SAFETY_CAP:
         status_cb("Safety cap reached — stopping")
+        return
     done_cb()
 
 

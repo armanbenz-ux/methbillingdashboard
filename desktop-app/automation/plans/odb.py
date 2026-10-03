@@ -15,13 +15,13 @@ def handle(win, token: str, plan: str, status_cb, pricing=None) -> str:
     extra = parts[2] if len(parts) > 2 else ""
 
     if status in ("ACCEPTED", "COPAY_AUTO_WAIVED"):
-        kb.send_keys("{ENTER}")
+        window_utils.send_to(win, "{ENTER}")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         return "continue"
 
     if status in ("COST_DIFF", "MARKUP_DIFF"):
-        kb.send_keys("n")
+        window_utils.send_to(win, "n")
         time.sleep(1)
         if not window_utils.is_window_open(win):
             time.sleep(0.3)
@@ -34,35 +34,43 @@ def handle(win, token: str, plan: str, status_cb, pricing=None) -> str:
     if status == "COPAY":
         amount = extra
         if amount in _waive_copay_amounts():
-            kb.send_keys("0{ENTER}")
+            window_utils.send_to(win, "0{ENTER}")
         else:
-            kb.send_keys("{ENTER}")
+            window_utils.send_to(win, "{ENTER}")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         return "continue"
 
     if status == "REJECTED_DRUG_INTERACTION":
-        kb.send_keys("i")
+        window_utils.send_to(win, "i", status_cb)
         time.sleep(0.4)
+        # The `i` above opens the intervention dialog, and THIS goes to that
+        # dialog, not back to the adjudication window. There is no handle for
+        # it here, so it stays a blind send -- forcing focus back to `win`
+        # would type the intervention code into the window behind the dialog.
         kb.send_keys("UA{ENTER}")
         time.sleep(0.3)
         return "continue"
 
     if status == "REJECTED_IDENTICAL_CLAIM":
-        kb.send_keys("i")
+        window_utils.send_to(win, "i", status_cb)
         time.sleep(0.4)
+        # The `i` above opens the intervention dialog, and THIS goes to that
+        # dialog, not back to the adjudication window. There is no handle for
+        # it here, so it stays a blind send -- forcing focus back to `win`
+        # would type the intervention code into the window behind the dialog.
         kb.send_keys("UA{ENTER}")
         time.sleep(0.3)
         return "continue"
 
     if status in ("REJECTED_COVERAGE_ERROR", "REJECTED_OTHER", "REJECTED_REFILL_TOO_SOON"):
-        kb.send_keys("s")
+        window_utils.send_to(win, "s")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         logger.log_skip(plan, token)
         return "flush"
 
-    kb.send_keys("s")
+    window_utils.send_to(win, "s")
     window_utils.wait_for_window_close(win)
     time.sleep(0.3)
     logger.log_skip(plan, token)
@@ -75,7 +83,7 @@ def handle_post_n(win, token: str, plan: str, status_cb) -> str:
     extra = parts[2] if len(parts) > 2 else ""
 
     if status in ("ACCEPTED", "COPAY_AUTO_WAIVED"):
-        kb.send_keys("{ENTER}")
+        window_utils.send_to(win, "{ENTER}")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         return "continue"
@@ -83,9 +91,9 @@ def handle_post_n(win, token: str, plan: str, status_cb) -> str:
     if status == "COPAY":
         amount = extra
         if amount in _waive_copay_amounts():
-            kb.send_keys("0{ENTER}")
+            window_utils.send_to(win, "0{ENTER}")
         else:
-            kb.send_keys("{ENTER}")
+            window_utils.send_to(win, "{ENTER}")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         return "continue"

@@ -1,5 +1,4 @@
 import time
-import pywinauto.keyboard as kb
 from pywinauto import Desktop
 from automation import window_utils, predictor
 from vision import client as vision_client
@@ -12,7 +11,7 @@ def handle(win, token: str, plan: str, status_cb, pricing=None) -> str:
     status = parts[1] if len(parts) > 1 else ""
 
     if status in ("ACCEPTED", "COPAY_AUTO_WAIVED"):
-        kb.send_keys("{ENTER}")
+        window_utils.send_to(win, "{ENTER}")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         return "continue"
@@ -34,7 +33,7 @@ def handle(win, token: str, plan: str, status_cb, pricing=None) -> str:
         elif pricing:
             status_cb(f"Predictor skipped ({meta.get('reason')}) — per-key")
         # legacy per-keystroke fallback
-        kb.send_keys("n")
+        window_utils.send_to(win, "n")
         time.sleep(1)
         if not window_utils.is_window_open(win):
             time.sleep(0.3)
@@ -45,7 +44,7 @@ def handle(win, token: str, plan: str, status_cb, pricing=None) -> str:
         return _handle_post_n(win, next_token, status_cb)
 
     if status == "COPAY":
-        kb.send_keys("0{ENTER}")
+        window_utils.send_to(win, "0{ENTER}")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         return "continue"
@@ -54,13 +53,13 @@ def handle(win, token: str, plan: str, status_cb, pricing=None) -> str:
         return _bc_intervention(win, plan, status_cb)
 
     if status in ("REJECTED_COVERAGE_ERROR", "REJECTED_OTHER"):
-        kb.send_keys("s")
+        window_utils.send_to(win, "s")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         logger.log_skip(plan, token)
         return "flush"
 
-    kb.send_keys("s")
+    window_utils.send_to(win, "s")
     window_utils.wait_for_window_close(win)
     time.sleep(0.3)
     logger.log_skip(plan, token)
@@ -71,12 +70,12 @@ def _handle_post_n(win, token: str, status_cb) -> str:
     parts = token.split(":")
     status = parts[1] if len(parts) > 1 else ""
     if status in ("ACCEPTED", "COPAY_AUTO_WAIVED"):
-        kb.send_keys("{ENTER}")
+        window_utils.send_to(win, "{ENTER}")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         return "continue"
     if status == "COPAY":
-        kb.send_keys("0{ENTER}")
+        window_utils.send_to(win, "0{ENTER}")
         window_utils.wait_for_window_close(win)
         time.sleep(0.3)
         return "continue"
@@ -87,7 +86,7 @@ def _handle_post_n(win, token: str, status_cb) -> str:
 
 def _bc_intervention(win, plan: str, status_cb) -> str:
     """BC identical claim intervention: I → select list → double-click → UN → Enter."""
-    kb.send_keys("i")
+    window_utils.send_to(win, "i")
     time.sleep(0.8)
 
     list_win = None
@@ -153,16 +152,20 @@ def _bc_intervention(win, plan: str, status_cb) -> str:
             break
         time.sleep(0.1)
 
-    if freeform_win:
-        try:
-            freeform_win.set_focus()
-        except Exception:
-            pass
     time.sleep(0.3)  # let the dialog fully paint
 
-    kb.send_keys("UN")
+    if freeform_win is None:
+        # It used to type UN and Enter anyway. With no dialog to take them they
+        # went to whatever had the foreground -- which, in a window that
+        # resubmits a claim, is not a keystroke to send hopefully.
+        status_cb("BC intervention: the free-form dialog never appeared -- "
+                  "nothing was typed")
+        return "continue"
+    if not window_utils.send_to(freeform_win, "UN", status_cb):
+        return "continue"
     time.sleep(0.5)
-    kb.send_keys("{ENTER}")
+    if not window_utils.send_to(freeform_win, "{ENTER}", status_cb):
+        return "continue"
     time.sleep(0.3)
     # wait for the rejection window to fully close after resubmission
     window_utils.wait_for_window_close(win, timeout=10.0)
