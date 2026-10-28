@@ -263,3 +263,43 @@ class InterventionSendsStayWithTheirDialogTestCase(unittest.TestCase):
             for blind in ('kb.send_keys("{ENTER}")', 'kb.send_keys("s")',
                           'kb.send_keys("0{ENTER}")', 'kb.send_keys("n")'):
                 self.assertNotIn(blind, src, f"{name}: {blind}")
+
+
+class WindowlessEntryPointTestCase(unittest.TestCase):
+    """
+    Double-clicking `main.py` runs it on `python.exe`, which always gets a
+    Command Prompt alongside the app. `main.pyw` runs on `pythonw.exe`, which
+    has no console at all -- not a hidden one, none created.
+
+    The cost is that a crash before the window opens would be silent, so it
+    has to be written down somewhere.
+    """
+
+    @property
+    def source(self):
+        path = os.path.join(os.path.dirname(_HERE), "main.pyw")
+        with open(path, encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_it_exists_and_runs_the_same_entry_point(self):
+        src = self.source
+        self.assertIn("from main import main", src)
+        self.assertIn("main()", src)
+
+    def test_main_py_is_left_alone(self):
+        # It is still the one to run when something is wrong.
+        path = os.path.join(os.path.dirname(_HERE), "main.py")
+        self.assertTrue(os.path.isfile(path))
+
+    def test_a_crash_is_written_down_rather_than_vanishing(self):
+        src = self.source
+        self.assertIn("last-crash.txt", src)
+        self.assertIn("traceback.format_exc()", src)
+
+    def test_a_crash_is_also_shown_to_whoever_double_clicked(self):
+        self.assertIn("showerror", self.source)
+
+    def test_a_failure_to_write_the_log_does_not_hide_the_crash(self):
+        # The message box must not depend on the file having been written.
+        src = self.source
+        self.assertIn("except OSError", src)
