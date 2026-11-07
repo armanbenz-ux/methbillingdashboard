@@ -164,6 +164,8 @@ class StuckLoopTestCase(unittest.TestCase):
             wait_for_window_close=lambda w, timeout=6.0: False,
             send_to=lambda w, keys, cb=None: True,
             dismiss_onnms=lambda w: True,
+            window_message_text=lambda w: "",
+            click_named_button=lambda w, phrase, cb=None: False,
         )
         adjudicator.vision_client = types.SimpleNamespace(
             analyse_full=lambda img, a, b: {"token": token, "pricing": None})
@@ -210,6 +212,8 @@ class StuckLoopTestCase(unittest.TestCase):
             wait_for_window_close=lambda w, timeout=6.0: True,
             send_to=lambda w, keys, cb=None: True,
             dismiss_onnms=lambda w: True,
+            window_message_text=lambda w: "",
+            click_named_button=lambda w, phrase, cb=None: False,
         )
         adjudicator.vision_client = types.SimpleNamespace(analyse_full=analyse)
         adjudicator._PLAN_HANDLERS = {"ODB": lambda *a, **k: "continue"}
@@ -303,3 +307,101 @@ class WindowlessEntryPointTestCase(unittest.TestCase):
         # The message box must not depend on the file having been written.
         src = self.source
         self.assertIn("except OSError", src)
+
+
+from automation import outage                              # noqa: E402
+
+
+class SwitchOutageTestCase(unittest.TestCase):
+    """
+    A plan's network being down and a plan refusing the claim both arrive as
+    "the claim was rejected", and the right answer is opposite: exclude and
+    rebill later, or accept that the plan said no.
+
+    Matched on the INFRASTRUCTURE wording, not the plan and not the token --
+    Arman saw `[E1] Host processing error` on CS and is not sure every plan
+    words it the same (2026-11-07).
+    """
+
+    LIVE = ("The CS claim was rejected because: "
+            "Errors, Warnings and Messages for CS "
+            "[E1] Host processing error. "
+            "REQUETE REJETEE PAR L'AIGUILLEUR "
+            "REQUEST REJECTED BY THE SWITCH")
+
+    def test_the_live_window_is_an_outage(self):
+        self.assertTrue(outage.is_switch_outage(self.LIVE))
+
+    def test_the_english_and_french_lines_each_carry_it(self):
+        self.assertTrue(outage.is_switch_outage("REQUEST REJECTED BY THE SWITCH"))
+        self.assertTrue(outage.is_switch_outage("REQUETE REJETEE PAR L'AIGUILLEUR"))
+
+    def test_it_does_not_depend_on_the_plan_or_the_token(self):
+        # The wording may differ per plan; the phrase is the part that means
+        # nobody answered.
+        self.assertTrue(outage.is_switch_outage("ODB: host processing error"))
+        self.assertTrue(outage.is_switch_outage("Host Processing Error"))
+
+    def test_a_real_refusal_is_never_an_outage(self):
+        for text in ("The claim was rejected: refill too soon",
+                     "Drug not covered by this plan",
+                     "Patient not eligible",
+                     "Identical claim already submitted",
+                     "Rejected: drug interaction",
+                     "Invalid health card"):
+            self.assertFalse(outage.is_switch_outage(text), text)
+
+    def test_a_refusal_wins_even_if_a_host_is_mentioned(self):
+        # Getting this wrong in that direction bills a patient against a plan
+        # that genuinely said no.
+        self.assertFalse(outage.is_switch_outage(
+            "Host processing error - drug not covered"))
+
+    def test_nothing_read_is_not_an_outage(self):
+        for text in ("", None, "   "):
+            self.assertFalse(outage.is_switch_outage(text))
+
+    def test_the_description_says_what_to_do_about_it(self):
+        said = outage.describe("CS", self.LIVE)
+        self.assertIn("CS", said)
+        self.assertIn("REBILL", said)
+        self.assertTrue(said.lower().startswith("plan outage:"))
+
+
+class OutageIsCheckedBeforeTheHandlerTestCase(unittest.TestCase):
+    """
+    Every handler answers a rejection with `s` -- skip, and flush the rest of
+    this patient's claims. A switch being down should cost one plan on one Rx,
+    not the whole patient's billing.
+    """
+
+    def _source(self):
+        path = os.path.join(os.path.dirname(_HERE), "automation",
+                            "adjudicator.py")
+        with open(path, encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_the_check_runs_before_the_plan_handler(self):
+        src = self._source()
+        self.assertLess(src.index("is_switch_outage"),
+                        src.index("handler = _PLAN_HANDLERS"))
+
+    def test_the_button_is_found_by_name_not_by_a_keystroke(self):
+        # Seven buttons on that window; `e` is a guess about which letter
+        # Kroll bound to Exclude.
+        src = self._source()
+        self.assertIn('click_named_button(win, "exclude plan"', src)
+        self.assertNotIn('send_to(win, "e"', src)
+
+    def test_a_button_it_cannot_find_presses_nothing(self):
+        src = self._source()
+        after = src[src.index("is_switch_outage"):]
+        self.assertIn("nothing was pressed", after)
+
+    def test_it_carries_on_rather_than_flushing_the_patient(self):
+        src = self._source()
+        after = src[src.index("is_switch_outage"):]
+        self.assertLess(after.index("continue"), after.index("_PLAN_HANDLERS"))
+
+    def test_the_exclusion_is_written_to_its_own_log(self):
+        self.assertIn("log_excluded", self._source())

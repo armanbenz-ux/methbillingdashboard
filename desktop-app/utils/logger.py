@@ -21,6 +21,28 @@ def log_skip(plan: str, token: str) -> None:
         f.write(line)
 
 
+def log_excluded(plan: str, token: str, why: str = "") -> None:
+    """
+    A plan excluded from an Rx because its network was down -- to be REBILLED.
+
+    Its own file, not the skipped log: a skip is a decision that is finished,
+    and this is a job left undone.
+    """
+    desktop = _get_desktop_path()
+    date_str = datetime.date.today().isoformat()
+    log_path = os.path.join(desktop, f"adjudication_rebill_{date_str}.log")
+    time_str = datetime.datetime.now().strftime("%H:%M:%S")
+    line = f"{time_str}  REBILL — {plan} | {token} | {why}\n"
+    with open(log_path, "a", encoding="utf-8") as f:
+        f.write(line)
+
+
+def rebill_log_path() -> str:
+    desktop = _get_desktop_path()
+    date_str = datetime.date.today().isoformat()
+    return os.path.join(desktop, f"adjudication_rebill_{date_str}.log")
+
+
 def log_shadow(plan: str, numbers: dict, predicted: list, meta: dict = None) -> None:
     desktop = _get_desktop_path()
     date_str = datetime.date.today().isoformat()

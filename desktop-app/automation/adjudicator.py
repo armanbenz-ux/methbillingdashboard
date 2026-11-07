@@ -9,7 +9,7 @@ ONNMS windows appear the loop times out and declares billing complete.
 """
 import time
 
-from automation import window_utils
+from automation import outage, window_utils
 from automation.plans import odb, bc, cs, gs, assure
 from vision import client as vision_client
 from utils import logger
@@ -120,6 +120,34 @@ def run(status_cb, done_cb, stop_flag) -> None:
             break
 
         token_plan = token.split(":")[0] if ":" in token else ""
+
+        # A plan whose network did not answer is not a plan that said no.
+        # Checked BEFORE the handler, because every handler's answer to a
+        # rejection is `s` -- skip and flush the rest of this patient's
+        # claims -- and a switch being down should cost one plan on one Rx,
+        # not the whole patient's billing (Nakashima, live 2026-11-07).
+        try:
+            said = window_utils.window_message_text(win)
+        except Exception as e:
+            # Reading the wording is a help, not a requirement. If it fails,
+            # fall back to the token alone and let the handler have the claim
+            # -- never kill the loop over a read.
+            status_cb(f"could not read the window text ({e})")
+            said = ""
+        if outage.is_switch_outage(f"{token} {said}"):
+            status_cb(outage.describe(token_plan, f"{token} {said}"))
+            if window_utils.click_named_button(win, "exclude plan", status_cb):
+                window_utils.wait_for_window_close(win)
+                logger.log_excluded(token_plan, token, said[:200])
+                time.sleep(0.3)
+                continue
+            # Nothing was pressed. Seven buttons on this window and the one
+            # meant for this could not be found, so it is left for a person
+            # rather than guessed at with a keystroke.
+            status_cb("could not find the 'Exclude plan from Rx' button -- "
+                      "nothing was pressed, answer this one by hand")
+            return
+
         handler = _PLAN_HANDLERS.get(token_plan)
 
         if handler is None:

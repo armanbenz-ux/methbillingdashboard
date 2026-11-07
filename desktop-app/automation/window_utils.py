@@ -141,6 +141,72 @@ def screenshot_screen() -> "Image.Image":
     return ImageGrab.grab()
 
 
+TEXT_CLASSES = ("Static", "TStaticText", "TLabel", "TMemo", "TRichEdit",
+                "TKRichEdit", "TListBox", "TKListView")
+
+
+def window_message_text(win) -> str:
+    """
+    Everything the window says, as one string, for identifying it by wording.
+
+    win32 only: this is used to tell a plan outage from a real refusal, and a
+    read that comes back empty must mean "could not tell" rather than "not an
+    outage" -- the caller treats an empty string as unknown and leaves the
+    claim alone.
+    """
+    parts = []
+    try:
+        children = win.descendants()
+    except Exception:
+        return ""
+    for c in children:
+        try:
+            if c.class_name() not in TEXT_CLASSES:
+                continue
+            text = c.window_text()
+        except Exception:
+            continue
+        if text and text.strip():
+            parts.append(text.strip())
+    return " ".join(parts)
+
+
+def click_named_button(win, phrase: str, status_cb=None) -> bool:
+    """
+    Click the button whose text contains `phrase`. True if one was clicked.
+
+    By TEXT, not by an accelerator: `e` for `Exclude plan from Rx` is a guess
+    about which letter Kroll bound, and this window has seven buttons. If the
+    button cannot be found, nothing is pressed and the caller decides -- a
+    stray keystroke on an adjudication window picks one of the other six.
+    """
+    want = phrase.strip().lower()
+    try:
+        children = win.descendants()
+    except Exception:
+        return False
+    for c in children:
+        try:
+            text = (c.window_text() or "").replace("&", "").strip().lower()
+            if not text or want not in text:
+                continue
+            if "btn" not in c.class_name().lower() and \
+               "button" not in c.class_name().lower():
+                continue
+        except Exception:
+            continue
+        try:
+            if not focus_window(win):
+                return False
+            c.click_input()
+            if status_cb:
+                status_cb(f"Clicked {c.window_text()!r}")
+            return True
+        except Exception:
+            continue
+    return False
+
+
 def dismiss_onnms(win) -> bool:
     """Click the OK button in an ONNMS window. Returns True if a button was clicked."""
     import pywinauto.keyboard as kb
